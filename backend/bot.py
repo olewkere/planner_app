@@ -46,7 +46,7 @@ async def create_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
                       (group_id, group_name, str([user_id]), user_id))
         db.commit()
 
-        invite_link = f"https://t.me/share/url?url=https://t.me/your_bot_username?start=join_{group_id}"
+        invite_link = f"https://t.me/share/url?url=https://t.me/your_planner_bot?start=join_{group_id}"
         await update.message.reply_text(
             f"Група '{group_name}' створена!\n"
             f"ID групи: {group_id}\n"
