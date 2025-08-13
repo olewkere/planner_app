@@ -30,7 +30,7 @@ async def create_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await db.execute("INSERT INTO groups (id, name, members) VALUES ($1, $2, $3)", 
                         group_id, group_name, [user_id])
         
-        invite_link = f"https://t.me/share/url?url=https://t.me/your_bot_username?start=join_{group_id}"
+        invite_link = f"https://t.me/share/url?url=https://t.me/your_planner_bot?start=join_{group_id}"
         await update.message.reply_text(
             f"Група '{group_name}' створена!\n"
             f"ID групи: {group_id}\n"
@@ -80,4 +80,5 @@ async def main():
     await application.run_polling()
 
 if __name__ == "__main__":
+
     asyncio.run(main()) 
