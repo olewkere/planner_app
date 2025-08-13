@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import psycopg2
-import psycopg2.extras
+import pg8000
 import os
 from dotenv import load_dotenv
 
@@ -11,7 +10,7 @@ app = Flask(__name__)
 CORS(app)
 
 def get_db():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
+    return pg8000.Connection(os.getenv("DATABASE_URL"))
 
 @app.route('/')
 def root():
@@ -39,11 +38,13 @@ def create_event():
 @app.route('/events/<int:user_id>')
 def get_user_events(user_id):
     db = get_db()
-    cursor = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = db.cursor()
     try:
         cursor.execute("SELECT * FROM events WHERE user_id = %s ORDER BY event_time", (user_id,))
         events = cursor.fetchall()
-        return jsonify([dict(event) for event in events])
+        # Конвертуємо в список словників
+        columns = [desc[0] for desc in cursor.description]
+        return jsonify([dict(zip(columns, row)) for row in events])
     finally:
         cursor.close()
         db.close()
@@ -65,11 +66,13 @@ def create_group():
 @app.route('/groups/<group_id>')
 def get_group_events(group_id):
     db = get_db()
-    cursor = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = db.cursor()
     try:
         cursor.execute("SELECT * FROM events WHERE group_id = %s ORDER BY event_time", (group_id,))
         events = cursor.fetchall()
-        return jsonify([dict(event) for event in events])
+        # Конвертуємо в список словників
+        columns = [desc[0] for desc in cursor.description]
+        return jsonify([dict(zip(columns, row)) for row in events])
     finally:
         cursor.close()
         db.close()
