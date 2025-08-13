@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import psycopg2
-import psycopg2.extras
+import sqlite3
 import os
 from dotenv import load_dotenv
 
@@ -12,7 +11,9 @@ CORS(app)
 
 def get_db():
     try:
-        return psycopg2.connect(os.getenv("DATABASE_URL"))
+        db = sqlite3.connect('planner.db')
+        db.row_factory = sqlite3.Row
+        return db
     except Exception as e:
         print(f"Database connection error: {e}")
         return None
@@ -32,11 +33,11 @@ def create_event():
     try:
         query = """
             INSERT INTO events (user_id, title, description, event_time, reminder_time, group_id)
-            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+            VALUES (?, ?, ?, ?, ?, ?)
         """
         cursor.execute(query, (data['user_id'], data['title'], data.get('description'), 
                               data['event_time'], data['reminder_time'], data.get('group_id')))
-        event_id = cursor.fetchone()[0]
+        event_id = cursor.lastrowid
         db.commit()
         return {"id": event_id}
     finally:
@@ -49,9 +50,9 @@ def get_user_events(user_id):
     if not db:
         return {"error": "Database connection failed"}, 500
     
-    cursor = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = db.cursor()
     try:
-        cursor.execute("SELECT * FROM events WHERE user_id = %s ORDER BY event_time", (user_id,))
+        cursor.execute("SELECT * FROM events WHERE user_id = ? ORDER BY event_time", (user_id,))
         events = cursor.fetchall()
         return jsonify([dict(event) for event in events])
     finally:
@@ -67,8 +68,8 @@ def create_group():
     
     cursor = db.cursor()
     try:
-        cursor.execute("INSERT INTO groups (id, name, members) VALUES (%s, %s, %s)", 
-                      (data['id'], data['name'], data['members']))
+        cursor.execute("INSERT INTO groups (id, name, members) VALUES (?, ?, ?)", 
+                      (data['id'], data['name'], str(data['members'])))
         db.commit()
         return {"success": True}
     finally:
@@ -81,9 +82,9 @@ def get_group_events(group_id):
     if not db:
         return {"error": "Database connection failed"}, 500
     
-    cursor = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = db.cursor()
     try:
-        cursor.execute("SELECT * FROM events WHERE group_id = %s ORDER BY event_time", (group_id,))
+        cursor.execute("SELECT * FROM events WHERE group_id = ? ORDER BY event_time", (group_id,))
         events = cursor.fetchall()
         return jsonify([dict(event) for event in events])
     finally:
@@ -98,22 +99,22 @@ if __name__ == '__main__':
         try:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS events (
-                    id SERIAL PRIMARY KEY,
-                    user_id BIGINT NOT NULL,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
                     title TEXT NOT NULL,
                     description TEXT,
-                    event_time TIMESTAMP NOT NULL,
-                    reminder_time TIMESTAMP NOT NULL,
+                    event_time TEXT NOT NULL,
+                    reminder_time TEXT NOT NULL,
                     group_id TEXT,
-                    created_at TIMESTAMP DEFAULT NOW()
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS groups (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
-                    members BIGINT[] DEFAULT '{}',
-                    created_at TIMESTAMP DEFAULT NOW()
+                    members TEXT DEFAULT '[]',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             db.commit()
