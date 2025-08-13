@@ -9,6 +9,7 @@ services:
         sync: false
       - key: BOT_TOKEN
         sync: false
+    autoDeploy: true
 
   - type: web
     name: planner-frontend
@@ -17,4 +18,5 @@ services:
     staticPublishPath: ./frontend/build
     envVars:
       - key: REACT_APP_API_URL
-        value: https://planner-api.onrender.com 
+        value: https://planner-api.onrender.com
+    autoDeploy: true 
