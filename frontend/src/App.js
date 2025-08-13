@@ -101,7 +101,7 @@ function App() {
   const deleteEvent = async (eventId) => {
     if (!user) return;
     
-    if (confirm('Ви впевнені, що хочете видалити цю подію?')) {
+    if (window.confirm('Ви впевнені, що хочете видалити цю подію?')) {
       try {
         await axios.delete(`${API_URL}/events/${eventId}`, {
           data: { user_id: user.id }
@@ -165,7 +165,7 @@ function App() {
   const deleteGroup = async (groupId) => {
     if (!user) return;
     
-    if (confirm('Ви впевнені, що хочете видалити цю групу?')) {
+    if (window.confirm('Ви впевнені, що хочете видалити цю групу?')) {
       try {
         await axios.delete(`${API_URL}/groups/${groupId}`, {
           data: { owner_id: user.id }
@@ -180,7 +180,7 @@ function App() {
   };
 
   const addMemberToGroup = (groupId) => {
-    const memberId = prompt('Введіть ID користувача для додавання:');
+    const memberId = window.prompt('Введіть ID користувача для додавання:');
     if (memberId && !isNaN(memberId)) {
       const group = groups.find(g => g.id === groupId);
       if (group) {
