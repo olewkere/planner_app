@@ -22,6 +22,7 @@ def get_db():
 def root():
     return {"message": "Planner API"}
 
+# Події
 @app.route('/events', methods=['POST'])
 def create_event():
     data = request.json
@@ -44,6 +45,53 @@ def create_event():
         cursor.close()
         db.close()
 
+@app.route('/events/<int:event_id>', methods=['PUT'])
+def update_event(event_id):
+    data = request.json
+    db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
+    cursor = db.cursor()
+    try:
+        query = """
+            UPDATE events 
+            SET title = ?, description = ?, event_time = ?, reminder_time = ?, group_id = ?
+            WHERE id = ? AND user_id = ?
+        """
+        cursor.execute(query, (data['title'], data.get('description'), 
+                              data['event_time'], data['reminder_time'], 
+                              data.get('group_id'), event_id, data['user_id']))
+        
+        if cursor.rowcount == 0:
+            return {"error": "Event not found or access denied"}, 404
+        
+        db.commit()
+        return {"success": True}
+    finally:
+        cursor.close()
+        db.close()
+
+@app.route('/events/<int:event_id>', methods=['DELETE'])
+def delete_event(event_id):
+    data = request.json
+    db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
+    cursor = db.cursor()
+    try:
+        cursor.execute("DELETE FROM events WHERE id = ? AND user_id = ?", (event_id, data['user_id']))
+        
+        if cursor.rowcount == 0:
+            return {"error": "Event not found or access denied"}, 404
+        
+        db.commit()
+        return {"success": True}
+    finally:
+        cursor.close()
+        db.close()
+
 @app.route('/events/<int:user_id>')
 def get_user_events(user_id):
     db = get_db()
@@ -59,6 +107,7 @@ def get_user_events(user_id):
         cursor.close()
         db.close()
 
+# Групи
 @app.route('/groups', methods=['POST'])
 def create_group():
     data = request.json
@@ -68,8 +117,49 @@ def create_group():
     
     cursor = db.cursor()
     try:
-        cursor.execute("INSERT INTO groups (id, name, members) VALUES (?, ?, ?)", 
-                      (data['id'], data['name'], str(data['members'])))
+        cursor.execute("INSERT INTO groups (id, name, members, owner_id) VALUES (?, ?, ?, ?)", 
+                      (data['id'], data['name'], str(data['members']), data['owner_id']))
+        db.commit()
+        return {"success": True}
+    finally:
+        cursor.close()
+        db.close()
+
+@app.route('/groups/<group_id>', methods=['PUT'])
+def update_group(group_id):
+    data = request.json
+    db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
+    cursor = db.cursor()
+    try:
+        cursor.execute("UPDATE groups SET name = ?, members = ? WHERE id = ? AND owner_id = ?", 
+                      (data['name'], str(data['members']), group_id, data['owner_id']))
+        
+        if cursor.rowcount == 0:
+            return {"error": "Group not found or access denied"}, 404
+        
+        db.commit()
+        return {"success": True}
+    finally:
+        cursor.close()
+        db.close()
+
+@app.route('/groups/<group_id>', methods=['DELETE'])
+def delete_group(group_id):
+    data = request.json
+    db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
+    cursor = db.cursor()
+    try:
+        cursor.execute("DELETE FROM groups WHERE id = ? AND owner_id = ?", (group_id, data['owner_id']))
+        
+        if cursor.rowcount == 0:
+            return {"error": "Group not found or access denied"}, 404
+        
         db.commit()
         return {"success": True}
     finally:
@@ -77,6 +167,23 @@ def create_group():
         db.close()
 
 @app.route('/groups/<group_id>')
+def get_group(group_id):
+    db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT * FROM groups WHERE id = ?", (group_id,))
+        group = cursor.fetchone()
+        if not group:
+            return {"error": "Group not found"}, 404
+        return jsonify(dict(group))
+    finally:
+        cursor.close()
+        db.close()
+
+@app.route('/groups/<group_id>/events')
 def get_group_events(group_id):
     db = get_db()
     if not db:
@@ -87,6 +194,22 @@ def get_group_events(group_id):
         cursor.execute("SELECT * FROM events WHERE group_id = ? ORDER BY event_time", (group_id,))
         events = cursor.fetchall()
         return jsonify([dict(event) for event in events])
+    finally:
+        cursor.close()
+        db.close()
+
+@app.route('/users/<int:user_id>/groups')
+def get_user_groups(user_id):
+    db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT * FROM groups WHERE owner_id = ? OR ? IN (SELECT json_extract(members, '$') FROM groups)", 
+                      (user_id, user_id))
+        groups = cursor.fetchall()
+        return jsonify([dict(group) for group in groups])
     finally:
         cursor.close()
         db.close()
@@ -114,6 +237,7 @@ if __name__ == '__main__':
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
                     members TEXT DEFAULT '[]',
+                    owner_id INTEGER NOT NULL,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
