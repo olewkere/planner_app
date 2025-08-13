@@ -3,8 +3,7 @@ import os
 from datetime import datetime, timedelta
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
-import psycopg2
-import psycopg2.extras
+import pg8000
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,7 +11,7 @@ load_dotenv()
 bot = Bot(token=os.getenv("BOT_TOKEN"))
 
 def get_db():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
+    return pg8000.Connection(os.getenv("DATABASE_URL"))
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -47,7 +46,7 @@ async def check_reminders():
     """Перевіряє нагадування кожну хвилину"""
     while True:
         db = get_db()
-        cursor = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor = db.cursor()
         try:
             now = datetime.now()
             # Знаходимо події, які потребують нагадування
@@ -57,8 +56,10 @@ async def check_reminders():
             """, (now, now - timedelta(minutes=1)))
             
             reminders = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
             
-            for reminder in reminders:
+            for reminder_row in reminders:
+                reminder = dict(zip(columns, reminder_row))
                 message = f"🔔 Нагадування!\n\n"
                 message += f"Подія: {reminder['title']}\n"
                 if reminder['description']:
