@@ -10,7 +10,11 @@ app = Flask(__name__)
 CORS(app)
 
 def get_db():
-    return pg8000.Connection(os.getenv("DATABASE_URL"))
+    try:
+        return pg8000.Connection(os.getenv("DATABASE_URL"))
+    except Exception as e:
+        print(f"Database connection error: {e}")
+        return None
 
 @app.route('/')
 def root():
@@ -20,6 +24,9 @@ def root():
 def create_event():
     data = request.json
     db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
     cursor = db.cursor()
     try:
         query = """
@@ -38,6 +45,9 @@ def create_event():
 @app.route('/events/<int:user_id>')
 def get_user_events(user_id):
     db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
     cursor = db.cursor()
     try:
         cursor.execute("SELECT * FROM events WHERE user_id = %s ORDER BY event_time", (user_id,))
@@ -53,6 +63,9 @@ def get_user_events(user_id):
 def create_group():
     data = request.json
     db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
     cursor = db.cursor()
     try:
         cursor.execute("INSERT INTO groups (id, name, members) VALUES (%s, %s, %s)", 
@@ -66,6 +79,9 @@ def create_group():
 @app.route('/groups/<group_id>')
 def get_group_events(group_id):
     db = get_db()
+    if not db:
+        return {"error": "Database connection failed"}, 500
+    
     cursor = db.cursor()
     try:
         cursor.execute("SELECT * FROM events WHERE group_id = %s ORDER BY event_time", (group_id,))
@@ -80,30 +96,38 @@ def get_group_events(group_id):
 if __name__ == '__main__':
     # Створення таблиць при запуску
     db = get_db()
-    cursor = db.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS events (
-            id SERIAL PRIMARY KEY,
-            user_id BIGINT NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT,
-            event_time TIMESTAMP NOT NULL,
-            reminder_time TIMESTAMP NOT NULL,
-            group_id TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS groups (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            members BIGINT[] DEFAULT '{}',
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-    """)
-    db.commit()
-    cursor.close()
-    db.close()
+    if db:
+        cursor = db.cursor()
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS events (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    event_time TIMESTAMP NOT NULL,
+                    reminder_time TIMESTAMP NOT NULL,
+                    group_id TEXT,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS groups (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    members BIGINT[] DEFAULT '{}',
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            db.commit()
+            print("Database tables created successfully")
+        except Exception as e:
+            print(f"Error creating tables: {e}")
+        finally:
+            cursor.close()
+            db.close()
+    else:
+        print("Warning: Could not connect to database during startup")
     
     port = int(os.environ.get("PORT", 8000))
     app.run(host='0.0.0.0', port=port) 
