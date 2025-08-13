@@ -3,7 +3,7 @@ services:
     name: planner-api
     env: python
     buildCommand: chmod +x backend/build.sh && ./backend/build.sh
-    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend && python simple_main.py
     envVars:
       - key: DATABASE_URL
         sync: false
