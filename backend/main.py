@@ -19,18 +19,18 @@ app.add_middleware(
 
 # Моделі даних
 class Event(BaseModel):
-    id: int | None = None
+    id: int = None
     user_id: int
     title: str
-    description: str | None = None
+    description: str = None
     event_time: str
     reminder_time: str
-    group_id: str | None = None
+    group_id: str = None
 
 class Group(BaseModel):
     id: str
     name: str
-    members: list[int]
+    members: list
 
 # Підключення до БД
 async def get_db():
