@@ -3,7 +3,7 @@ services:
     name: planner-api
     env: python
     buildCommand: chmod +x backend/build.sh && ./backend/build.sh
-    startCommand: cd backend && python simple_main.py
+    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT simple_main:app
     envVars:
       - key: DATABASE_URL
         sync: false
